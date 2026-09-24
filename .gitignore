@@ -7,3 +7,8 @@ build/
 .vscode/
 coverage/
 /*.log
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
