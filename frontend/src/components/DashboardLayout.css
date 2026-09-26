@@ -1,0 +1,23 @@
+/* ──────────────────────────────────────────────────────────
+   DashboardLayout.css
+   ────────────────────────────────────────────────────────── */
+
+.dashboard-layout {
+  min-height: 100vh;
+  background: var(--bg-body);
+}
+
+.dashboard-main {
+  margin-left: var(--sidebar-width);
+  margin-top: var(--navbar-height);
+  padding: 28px 32px;
+  min-height: calc(100vh - var(--navbar-height));
+  animation: fadeIn 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .dashboard-main {
+    margin-left: 0;
+    padding: 20px 16px;
+  }
+}

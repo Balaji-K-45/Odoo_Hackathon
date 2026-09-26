@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════════════════
+   Products Page Styles
+   ═══════════════════════════════════════════════════════════ */
+
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.stock-badge--ok  { background: var(--success-light); color: #059669; }
+.stock-badge--low { background: var(--warning-light); color: #d97706; }
+.stock-badge--out { background: var(--danger-light);  color: var(--danger); }
+
+.product-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.product-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+.product-detail-row:last-child { border-bottom: none; }
+.product-detail-row span:first-child {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.product-detail-row code {
+  background: var(--bg-body);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
