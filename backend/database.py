@@ -19,6 +19,7 @@ Environment variables required (put in backend/.env):
 """
 
 import os
+from contextlib import contextmanager
 import pymysql
 import pymysql.cursors
 from flask import g
@@ -48,6 +49,18 @@ def get_db():
     if "db" not in g:
         g.db = _get_connection()
     return g.db
+
+
+@contextmanager
+def transaction():
+    """Commit all work in the current request transaction or roll it back."""
+    db = get_db()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def close_db(exception=None):

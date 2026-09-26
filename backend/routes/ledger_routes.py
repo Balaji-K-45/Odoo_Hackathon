@@ -1,6 +1,7 @@
 """
 routes/ledger_routes.py
 ------------------------
+Both roles can view the ledger.
 GET /api/ledger   → audit trail of all stock movements
   Optional query params:
     ?product_id=
@@ -10,12 +11,18 @@ GET /api/ledger   → audit trail of all stock movements
 """
 
 from flask import Blueprint, request, jsonify
+from middleware.auth import (
+    login_required, roles_required,
+    INVENTORY_MANAGER, WAREHOUSE_STAFF,
+)
 from services.ledger_service import get_ledger
 
 ledger_bp = Blueprint("ledger", __name__)
 
 
 @ledger_bp.route("/api/ledger", methods=["GET"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def get_stock_ledger():
     product_id     = request.args.get("product_id")
     operation_type = request.args.get("operation_type")

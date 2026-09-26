@@ -22,7 +22,7 @@ def get_user_by_id(user_id):
         return cur.fetchone()
 
 
-def create_user(name, email, password_hash, role="staff"):
+def create_user(name, email, password_hash, role="WAREHOUSE_STAFF"):
     db = get_db()
     with db.cursor() as cur:
         cur.execute(

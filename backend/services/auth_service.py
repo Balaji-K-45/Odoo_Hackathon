@@ -25,9 +25,13 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 TOKEN_EXPIRY_HOURS = 24
 
 
+# ── Public signup role ───────────────────────────────────────────────────────
+WAREHOUSE_STAFF = "WAREHOUSE_STAFF"
+
+
 # ── Signup ───────────────────────────────────────────────────────────────────
 
-def signup(name, email, password, role="staff"):
+def signup(name, email, password):
     name  = (name or "").strip()
     email = (email or "").strip().lower()
 
@@ -37,8 +41,8 @@ def signup(name, email, password, role="staff"):
         return None, "Valid email is required"
     if not password or len(password) < 6:
         return None, "Password must be at least 6 characters"
-    if role not in ("manager", "staff"):
-        role = "staff"
+    # Public registration must never grant elevated privileges.
+    role = WAREHOUSE_STAFF
 
     if get_user_by_email(email):
         return None, "Email already registered"

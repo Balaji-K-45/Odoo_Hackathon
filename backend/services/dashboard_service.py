@@ -4,6 +4,7 @@ Uses DATE_SUB(NOW(), INTERVAL 30 DAY) instead of SQLite's datetime('now','-30 da
 """
 
 from database import get_db
+from services.ledger_service import get_ledger
 
 
 def _scalar(sql, params=()):
@@ -18,21 +19,28 @@ def _scalar(sql, params=()):
 
 def get_dashboard_kpis():
     total_products = _scalar("SELECT COUNT(*) AS cnt FROM products")
+    total_stock = float(
+        _scalar("SELECT COALESCE(SUM(quantity), 0) AS total FROM stock")
+    )
 
     low_stock = _scalar("""
-        SELECT COUNT(DISTINCT s.product_id) AS cnt
-        FROM stock s
-        JOIN products p ON p.id = s.product_id
-        WHERE s.quantity > 0 AND s.quantity <= p.reorder_level
+        SELECT COUNT(*) AS cnt FROM (
+            SELECT p.id, COALESCE(SUM(s.quantity), 0) AS total
+            FROM products p
+            LEFT JOIN stock s ON s.product_id = p.id
+            GROUP BY p.id, p.reorder_level
+            HAVING total > 0 AND total <= p.reorder_level
+        ) AS low_stock_products
     """)
 
     out_of_stock = _scalar("""
         SELECT COUNT(*) AS cnt FROM (
-            SELECT product_id
-            FROM stock
-            GROUP BY product_id
-            HAVING SUM(quantity) = 0
-        ) AS sub
+            SELECT p.id, COALESCE(SUM(s.quantity), 0) AS total
+            FROM products p
+            LEFT JOIN stock s ON s.product_id = p.id
+            GROUP BY p.id
+            HAVING total = 0
+        ) AS out_of_stock_products
     """)
 
     pending_receipts = _scalar("""
@@ -76,6 +84,7 @@ def get_dashboard_kpis():
 
     return {
         "total_products":     total_products,
+        "total_stock":        total_stock,
         "low_stock_items":    low_stock,
         "out_of_stock_items": out_of_stock,
         "pending_receipts":   pending_receipts,
@@ -86,5 +95,6 @@ def get_dashboard_kpis():
             "deliveries":  recent_deliveries,
             "transfers":   recent_transfers,
             "adjustments": recent_adjustments,
-        }
+        },
+        "recent_stock_activity": get_ledger(limit=10),
     }

@@ -1,11 +1,15 @@
 """
 routes/adjustment_routes.py
 ----------------------------
-POST /api/adjustments      → physical stock count adjustment
-GET  /api/adjustments      → list all adjustments
+Both roles can create and view adjustments.
+user_id sourced from JWT token (g.current_user_id).
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
+from middleware.auth import (
+    login_required, roles_required,
+    INVENTORY_MANAGER, WAREHOUSE_STAFF,
+)
 from services.stock_service import process_adjustment
 from models.operation import get_operations_by_type
 
@@ -13,6 +17,8 @@ adjustment_bp = Blueprint("adjustments", __name__)
 
 
 @adjustment_bp.route("/api/adjustments", methods=["POST"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def create_adjustment():
     data = request.get_json() or {}
 
@@ -22,7 +28,7 @@ def create_adjustment():
         physical_count = data.get("physical_count"),
         reference      = data.get("reference"),
         notes          = data.get("notes"),
-        user_id        = data.get("user_id"),
+        user_id        = g.current_user_id,   # ← from token
     )
     if error:
         return jsonify({"success": False, "message": error}), 400
@@ -34,6 +40,8 @@ def create_adjustment():
 
 
 @adjustment_bp.route("/api/adjustments", methods=["GET"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def list_adjustments():
     adjustments = get_operations_by_type("ADJUSTMENT")
     return jsonify({"success": True, "data": adjustments}), 200

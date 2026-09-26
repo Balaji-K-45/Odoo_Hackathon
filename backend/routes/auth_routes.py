@@ -1,17 +1,21 @@
 """
 routes/auth_routes.py
 ----------------------
-POST /api/auth/signup          → create account
-POST /api/auth/login           → get JWT token
-POST /api/auth/forgot-password → request OTP
-POST /api/auth/verify-otp      → check OTP validity
-POST /api/auth/reset-password  → set new password with OTP
-GET  /api/auth/profile         → get logged-in user info (requires token)
+Public routes (no token needed):
+  POST /api/auth/signup          → create account
+  POST /api/auth/login           → get JWT token
+  POST /api/auth/forgot-password → request OTP
+  POST /api/auth/verify-otp      → check OTP validity
+  POST /api/auth/reset-password  → set new password
+
+Protected routes (token required, any authenticated role):
+  GET  /api/auth/profile         → get logged-in user info
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
+from middleware.auth import login_required, roles_required, ALL_ROLES
 from services.auth_service import (
-    signup, login, send_otp, verify_otp, reset_password, decode_token
+    signup, login, send_otp, verify_otp, reset_password,
 )
 from models.user import get_user_by_id
 import jwt
@@ -19,7 +23,7 @@ import jwt
 auth_bp = Blueprint("auth", __name__)
 
 
-# ── Signup ───────────────────────────────────────────────────────────────────
+# ── Signup (public) ───────────────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/signup", methods=["POST"])
 def do_signup():
@@ -28,7 +32,6 @@ def do_signup():
         name     = data.get("name"),
         email    = data.get("email"),
         password = data.get("password"),
-        role     = data.get("role", "staff"),
     )
     if error:
         return jsonify({"success": False, "message": error}), 400
@@ -39,7 +42,7 @@ def do_signup():
     }), 201
 
 
-# ── Login ────────────────────────────────────────────────────────────────────
+# ── Login (public) ────────────────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def do_login():
@@ -57,7 +60,7 @@ def do_login():
     }), 200
 
 
-# ── Forgot Password ───────────────────────────────────────────────────────────
+# ── Forgot Password (public) ──────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
@@ -68,7 +71,7 @@ def forgot_password():
     return jsonify({"success": True, "data": result}), 200
 
 
-# ── Verify OTP ───────────────────────────────────────────────────────────────
+# ── Verify OTP (public) ───────────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/verify-otp", methods=["POST"])
 def do_verify_otp():
@@ -82,7 +85,7 @@ def do_verify_otp():
     return jsonify({"success": True, "data": result}), 200
 
 
-# ── Reset Password ────────────────────────────────────────────────────────────
+# ── Reset Password (public) ───────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])
 def do_reset_password():
@@ -97,22 +100,12 @@ def do_reset_password():
     return jsonify({"success": True, "data": result}), 200
 
 
-# ── Profile (protected) ───────────────────────────────────────────────────────
+# ── Profile (protected — any authenticated role) ──────────────────────────────
 
 @auth_bp.route("/api/auth/profile", methods=["GET"])
+@auth_bp.route("/api/auth/me", methods=["GET"])
+@login_required
+@roles_required(*ALL_ROLES)
 def profile():
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return jsonify({"success": False, "message": "Token required"}), 401
-    token = auth_header.split(" ", 1)[1]
-    try:
-        payload = decode_token(token)
-    except jwt.ExpiredSignatureError:
-        return jsonify({"success": False, "message": "Token expired"}), 401
-    except jwt.InvalidTokenError:
-        return jsonify({"success": False, "message": "Invalid token"}), 401
-
-    user = get_user_by_id(payload["user_id"])
-    if not user:
-        return jsonify({"success": False, "message": "User not found"}), 404
-    return jsonify({"success": True, "data": user}), 200
+    """Returns the currently logged-in user's profile."""
+    return jsonify({"success": True, "data": g.current_user}), 200

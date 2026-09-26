@@ -1,12 +1,15 @@
 """
 routes/transfer_routes.py
 --------------------------
-POST /api/transfers        → move stock between locations
-GET  /api/transfers        → list all transfers
-GET  /api/transfers/<id>   → single transfer detail
+Both roles can create and view transfers.
+user_id sourced from JWT token (g.current_user_id).
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
+from middleware.auth import (
+    login_required, roles_required,
+    INVENTORY_MANAGER, WAREHOUSE_STAFF,
+)
 from services.stock_service import process_transfer
 from models.operation import get_operations_by_type, get_operation_by_id
 
@@ -14,6 +17,8 @@ transfer_bp = Blueprint("transfers", __name__)
 
 
 @transfer_bp.route("/api/transfers", methods=["POST"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def create_transfer():
     data = request.get_json() or {}
 
@@ -24,7 +29,7 @@ def create_transfer():
         quantity                = data.get("quantity"),
         reference               = data.get("reference"),
         notes                   = data.get("notes"),
-        user_id                 = data.get("user_id"),
+        user_id                 = g.current_user_id,   # ← from token
     )
     if error:
         return jsonify({"success": False, "message": error}), 400
@@ -36,12 +41,16 @@ def create_transfer():
 
 
 @transfer_bp.route("/api/transfers", methods=["GET"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def list_transfers():
     transfers = get_operations_by_type("TRANSFER")
     return jsonify({"success": True, "data": transfers}), 200
 
 
 @transfer_bp.route("/api/transfers/<int:operation_id>", methods=["GET"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def get_transfer(operation_id):
     op = get_operation_by_id(operation_id)
     if not op or op.get("operation_type") != "TRANSFER":

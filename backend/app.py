@@ -15,7 +15,17 @@ Responsibilities:
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from decimal import Decimal
 import os
+
+from flask.json.provider import DefaultJSONProvider
+
+
+class StockSenseJSONProvider(DefaultJSONProvider):
+    def default(self, value):
+        if isinstance(value, Decimal):
+            return float(value)
+        return super().default(value)
 
 # Load .env values (SECRET_KEY, etc.) before anything else
 load_dotenv()
@@ -25,6 +35,7 @@ import database
 
 # ── Create Flask app ───────────────────────────────────────────────────────
 app = Flask(__name__)
+app.json = StockSenseJSONProvider(app)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # ── CORS: allow the React dev server to call this backend ──────────────────
@@ -51,6 +62,7 @@ from routes.adjustment_routes import adjustment_bp
 from routes.ledger_routes     import ledger_bp
 from routes.dashboard_routes  import dashboard_bp
 from routes.auth_routes       import auth_bp
+from routes.stock_routes      import stock_bp
 
 app.register_blueprint(product_bp)
 app.register_blueprint(category_bp)
@@ -62,6 +74,7 @@ app.register_blueprint(adjustment_bp)
 app.register_blueprint(ledger_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(stock_bp)
 
 # ── Health check ───────────────────────────────────────────────────────────
 @app.route("/api/health", methods=["GET"])

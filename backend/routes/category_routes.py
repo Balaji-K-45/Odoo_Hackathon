@@ -1,23 +1,31 @@
 """
 routes/category_routes.py
 --------------------------
-GET  /api/categories     → list all categories
-POST /api/categories     → create a category
+GET  /api/categories  → Both roles (needed to pick category when creating receipts)
+POST /api/categories  → INVENTORY_MANAGER only
 """
 
 from flask import Blueprint, request, jsonify
+from middleware.auth import (
+    login_required, roles_required,
+    INVENTORY_MANAGER, WAREHOUSE_STAFF,
+)
 from models.category import get_all_categories, get_category_by_id, create_category
 
 category_bp = Blueprint("categories", __name__)
 
 
 @category_bp.route("/api/categories", methods=["GET"])
+@login_required
+@roles_required(INVENTORY_MANAGER, WAREHOUSE_STAFF)
 def get_categories():
     cats = get_all_categories()
     return jsonify({"success": True, "data": cats}), 200
 
 
 @category_bp.route("/api/categories", methods=["POST"])
+@login_required
+@roles_required(INVENTORY_MANAGER)
 def add_category():
     data = request.get_json()
     name = (data.get("name") or "").strip() if data else ""

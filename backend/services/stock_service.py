@@ -15,13 +15,27 @@ After changing stock, each function creates:
   3. Stock ledger entries (the audit trail)
 """
 
-from database import get_db
-from models.stock     import get_stock, upsert_stock
+from database import transaction
+from models.stock     import (
+    decrease_stock_if_available, get_all_stock, get_stock,
+    get_stock_rows_for_update, increase_stock, lock_stock_row,
+    set_stock_quantity,
+)
 from models.operation import (
     create_operation, create_operation_item, add_ledger_entry
 )
 from models.product   import get_product_by_id
 from models.warehouse import get_location_by_id
+
+
+def list_stock(product_id=None, location_id=None, warehouse_id=None,
+               category_id=None):
+    return get_all_stock(
+        product_id=product_id,
+        location_id=location_id,
+        warehouse_id=warehouse_id,
+        category_id=category_id,
+    )
 
 
 # ── RECEIPT ─────────────────────────────────────────────────────────────────
@@ -36,16 +50,15 @@ def process_receipt(product_id, location_id, quantity,
     if error:
         return None, error
 
-    db = get_db()
-    current = get_stock(product_id, location_id)
-    new_qty  = current + quantity
+    quantity = float(quantity)
 
-    op_id = create_operation("RECEIPT", reference, notes, user_id)
-    create_operation_item(op_id, product_id, None, location_id, quantity)
-    upsert_stock(product_id, location_id, new_qty)
-    add_ledger_entry(product_id, op_id, "RECEIPT", location_id,
-                     +quantity, reference, user_id)
-    db.commit()
+    with transaction():
+        increase_stock(product_id, location_id, quantity)
+        new_qty = get_stock(product_id, location_id)
+        op_id = create_operation("RECEIPT", reference, notes, user_id)
+        create_operation_item(op_id, product_id, None, location_id, quantity)
+        add_ledger_entry(product_id, op_id, "RECEIPT", location_id,
+                         quantity, reference, user_id)
 
     return _build_result(op_id, product_id, location_id, new_qty), None
 
@@ -62,21 +75,19 @@ def process_delivery(product_id, location_id, quantity,
     if error:
         return None, error
 
-    db = get_db()
-    current = get_stock(product_id, location_id)
-    if current < quantity:
-        return None, (
-            f"Insufficient stock. Available: {current}, Requested: {quantity}"
-        )
+    quantity = float(quantity)
 
-    new_qty = current - quantity
-
-    op_id = create_operation("DELIVERY", reference, notes, user_id)
-    create_operation_item(op_id, product_id, location_id, None, quantity)
-    upsert_stock(product_id, location_id, new_qty)
-    add_ledger_entry(product_id, op_id, "DELIVERY", location_id,
-                     -quantity, reference, user_id)
-    db.commit()
+    with transaction():
+        new_qty = decrease_stock_if_available(product_id, location_id, quantity)
+        if new_qty is None:
+            current = get_stock(product_id, location_id)
+            return None, (
+                f"Insufficient stock. Available: {current}, Requested: {quantity}"
+            )
+        op_id = create_operation("DELIVERY", reference, notes, user_id)
+        create_operation_item(op_id, product_id, location_id, None, quantity)
+        add_ledger_entry(product_id, op_id, "DELIVERY", location_id,
+                         -quantity, reference, user_id)
 
     return _build_result(op_id, product_id, location_id, new_qty), None
 
@@ -98,6 +109,7 @@ def process_transfer(product_id, source_location_id, destination_location_id,
     error = _validate_quantity(quantity)
     if error:
         return None, error
+    quantity = float(quantity)
 
     if not get_product_by_id(product_id):
         return None, "Product not found"
@@ -106,30 +118,31 @@ def process_transfer(product_id, source_location_id, destination_location_id,
     if not get_location_by_id(destination_location_id):
         return None, "Destination location not found"
 
-    db = get_db()
-    src_qty = get_stock(product_id, source_location_id)
-    if src_qty < quantity:
-        return None, (
-            f"Insufficient stock at source. Available: {src_qty}, Requested: {quantity}"
+    with transaction():
+        quantities = get_stock_rows_for_update(
+            product_id, [source_location_id, destination_location_id]
         )
+        src_qty = quantities.get(source_location_id, 0.0)
+        if src_qty < quantity:
+            return None, (
+                f"Insufficient stock at source. Available: {src_qty}, Requested: {quantity}"
+            )
 
-    dst_qty = get_stock(product_id, destination_location_id)
-    new_src = src_qty - quantity
-    new_dst = dst_qty + quantity
+        dst_qty = quantities.get(destination_location_id, 0.0)
+        new_src = src_qty - quantity
+        new_dst = dst_qty + quantity
 
-    op_id = create_operation("TRANSFER", reference, notes, user_id)
-    create_operation_item(op_id, product_id,
-                          source_location_id, destination_location_id, quantity)
+        op_id = create_operation("TRANSFER", reference, notes, user_id)
+        create_operation_item(op_id, product_id,
+                              source_location_id, destination_location_id, quantity)
 
-    upsert_stock(product_id, source_location_id, new_src)
-    upsert_stock(product_id, destination_location_id, new_dst)
+        set_stock_quantity(product_id, source_location_id, new_src)
+        increase_stock(product_id, destination_location_id, quantity)
 
-    # Two ledger entries — one negative (source), one positive (destination)
-    add_ledger_entry(product_id, op_id, "TRANSFER", source_location_id,
-                     -quantity, reference, user_id)
-    add_ledger_entry(product_id, op_id, "TRANSFER", destination_location_id,
-                     +quantity, reference, user_id)
-    db.commit()
+        add_ledger_entry(product_id, op_id, "TRANSFER", source_location_id,
+                         -quantity, reference, user_id)
+        add_ledger_entry(product_id, op_id, "TRANSFER", destination_location_id,
+                         quantity, reference, user_id)
 
     return {
         "operation_id":           op_id,
@@ -154,18 +167,18 @@ def process_adjustment(product_id, location_id, physical_count,
                               allow_zero=True)
     if error:
         return None, error
+    physical_count = float(physical_count)
 
-    db = get_db()
-    current    = get_stock(product_id, location_id)
-    difference = physical_count - current
+    with transaction():
+        current = lock_stock_row(product_id, location_id)
+        difference = physical_count - current
 
-    op_id = create_operation("ADJUSTMENT", reference, notes, user_id)
-    create_operation_item(op_id, product_id, location_id, location_id,
-                          physical_count)
-    upsert_stock(product_id, location_id, physical_count)
-    add_ledger_entry(product_id, op_id, "ADJUSTMENT", location_id,
-                     difference, reference, user_id)
-    db.commit()
+        op_id = create_operation("ADJUSTMENT", reference, notes, user_id)
+        create_operation_item(op_id, product_id, location_id, location_id,
+                              physical_count)
+        set_stock_quantity(product_id, location_id, physical_count)
+        add_ledger_entry(product_id, op_id, "ADJUSTMENT", location_id,
+                         difference, reference, user_id)
 
     return {
         "operation_id":    op_id,

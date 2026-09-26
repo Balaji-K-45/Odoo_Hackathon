@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     name          VARCHAR(120) NOT NULL,
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role          ENUM('manager','staff') NOT NULL DEFAULT 'staff',
+    role          ENUM('INVENTORY_MANAGER','WAREHOUSE_STAFF') NOT NULL DEFAULT 'WAREHOUSE_STAFF',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB;
