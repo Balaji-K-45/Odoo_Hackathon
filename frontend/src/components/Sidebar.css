@@ -48,12 +48,6 @@
   letter-spacing: -0.5px;
 }
 
-.sidebar-subtitle {
-  font-size: 11px;
-  color: rgba(148, 163, 184, 0.7);
-  font-weight: 500;
-}
-
 /* ── Role Banner ────────────────────────────────────────── */
 .sidebar-role-banner {
   margin: 12px 14px 4px;

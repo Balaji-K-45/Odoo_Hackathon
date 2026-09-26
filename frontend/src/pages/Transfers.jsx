@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Modal, Toast, LoadingSpinner, ErrorMessage, EmptyState, StatusBadge, SearchBar } from "../components/ui";
 import { getTransfers, createTransfer } from "../services/inventoryApi";
 import { getProducts } from "../services/productApi";
-import { getWarehouses, getLocations } from "../services/warehouseApi";
+import { getLocations } from "../services/warehouseApi";
 
 export default function Transfers() {
   const [transfers, setTransfers]       = useState([]);
@@ -27,16 +27,14 @@ export default function Transfers() {
   async function loadData() {
     setLoading(true); setError("");
     try {
-      const [tRes, pRes, wRes, lRes] = await Promise.all([
+      const [tRes, pRes, lRes] = await Promise.all([
         getTransfers(),
         getProducts(),
-        getWarehouses(),
         getLocations(),
       ]);
       setTransfers(tRes.data || []);
       setProducts(pRes.data || []);
-      const combined = [...(wRes.data || []), ...(lRes.data || [])];
-      setAllLocations(combined);
+      setAllLocations(lRes.data || []);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }

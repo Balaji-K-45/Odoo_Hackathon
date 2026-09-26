@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import {
   getWarehouses,
   createWarehouse,
+  deleteWarehouse,
   getLocations,
   createLocation,
 } from "../services/warehouseApi";
@@ -15,7 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import "./Operations.css";
 
 export default function WarehouseSettings() {
-  const { isManager, canManageSettings } = useAuth();
+  const { canManageSettings } = useAuth();
   const navigate = useNavigate();
 
   const [warehouses, setWarehouses] = useState([]);
@@ -140,6 +141,17 @@ export default function WarehouseSettings() {
     }
   }
 
+  async function handleDeleteWarehouse(warehouse) {
+    if (!window.confirm(`Delete ${warehouse.name}? Warehouses with stock or movement history cannot be deleted.`)) return;
+    try {
+      await deleteWarehouse(warehouse.id);
+      setToast({ message: `${warehouse.name} deleted`, type: "success" });
+      await loadData();
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  }
+
   function getLocationsForWarehouse(whId) {
     return locations.filter((l) => l.warehouseId === whId);
   }
@@ -191,6 +203,15 @@ export default function WarehouseSettings() {
                     {whLocations.length} storage {whLocations.length === 1 ? "location" : "locations"}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="btn btn--danger btn--sm"
+                  onClick={() => handleDeleteWarehouse(wh)}
+                  aria-label={`Delete ${wh.name}`}
+                  title="Delete warehouse"
+                >
+                  Remove
+                </button>
               </div>
 
               {/* Explicit Storage Hierarchy Visualization */}

@@ -5,10 +5,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { USE_MOCKS } from "../services/api";
 import "./Navbar.css";
 
 export default function Navbar({ onMenuToggle }) {
-  const { user, isStaff, isManager, switchRole, logoutUser } = useAuth();
+  const { user, isStaff, switchRole, logoutUser } = useAuth();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -80,12 +81,12 @@ export default function Navbar({ onMenuToggle }) {
             <div className="navbar-dropdown-divider" />
 
             {/* Quick Demo Role Switcher */}
-            <button
+            {USE_MOCKS && <button
               className="navbar-dropdown-item navbar-dropdown-item--switch"
               onClick={handleToggleRole}
             >
               <span>⇄</span> Switch to {isStaff ? "Inventory Manager" : "Warehouse Staff"}
-            </button>
+            </button>}
 
             <button
               className="navbar-dropdown-item"

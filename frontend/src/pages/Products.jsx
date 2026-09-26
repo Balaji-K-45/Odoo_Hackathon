@@ -8,7 +8,6 @@ import {
   LoadingSpinner,
   ErrorMessage,
   EmptyState,
-  StatusBadge,
   Modal,
   Toast,
   ConfirmDialog,
@@ -20,14 +19,15 @@ import {
   deleteProduct,
 } from "../services/productApi";
 import { getCategories } from "../services/dashboardApi";
-import { getWarehouses, getLocations } from "../services/warehouseApi";
+import { getLocations, getWarehouses } from "../services/warehouseApi";
+import { createReceipt } from "../services/inventoryApi";
 import { useAuth } from "../context/AuthContext";
 import "./Products.css";
 
 const UOM_OPTIONS = ["pcs", "kg", "m", "roll", "litre", "box"];
 
 export default function Products() {
-  const { user, isStaff, isManager, canManageProducts } = useAuth();
+  const { canManageProducts } = useAuth();
   const [products, setProducts]       = useState([]);
   const [categories, setCategories]   = useState([]);
   const [warehouses, setWarehouses]   = useState([]);
@@ -47,8 +47,9 @@ export default function Products() {
     category_id: "",
     uom: "pcs",
     reorder_level: "",
+    warehouse_id: "",
     location_id: "",
-    initial_stock: "",
+    stock_to_add: "",
   });
   const [formError, setFormError]     = useState("");
   const [saving, setSaving]           = useState(false);
@@ -103,8 +104,9 @@ export default function Products() {
       category_id: "",
       uom: "pcs",
       reorder_level: "",
+      warehouse_id: "",
       location_id: "",
-      initial_stock: "",
+      stock_to_add: "",
     });
     setFormError("");
     setModalOpen(true);
@@ -125,15 +127,20 @@ export default function Products() {
       category_id: String(p.category_id || ""),
       uom: p.uom,
       reorder_level: String(p.reorder_level || ""),
-      location_id: String(p.location_id || ""),
-      initial_stock: String(p.stock || ""),
+      warehouse_id: "",
+      location_id: "",
+      stock_to_add: "",
     });
     setFormError("");
     setModalOpen(true);
   }
 
   function updateField(k, v) {
-    setForm((prev) => ({ ...prev, [k]: v }));
+    setForm((prev) => ({
+      ...prev,
+      [k]: v,
+      ...(k === "warehouse_id" ? { location_id: "" } : {}),
+    }));
   }
 
   async function handleSave(e) {
@@ -149,6 +156,10 @@ export default function Products() {
       setFormError("Name and SKU are required");
       return;
     }
+    if (Number(form.stock_to_add) > 0 && !form.location_id) {
+      setFormError("Select a warehouse location for the stock quantity");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -157,14 +168,32 @@ export default function Products() {
         category_id: Number(form.category_id) || null,
         location_id: Number(form.location_id) || null,
         reorder_level: Number(form.reorder_level) || 0,
-        stock: form.initial_stock !== "" ? Number(form.initial_stock) : undefined,
+        stock_to_add: form.stock_to_add !== "" ? Number(form.stock_to_add) : undefined,
+        warehouse_id: Number(form.warehouse_id) || null,
       };
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, payload);
+        if (Number(form.stock_to_add) > 0) {
+          await createReceipt({
+            product_id: editingProduct.id,
+            location_id: Number(form.location_id),
+            quantity: Number(form.stock_to_add),
+            reference: "Manager stock update",
+          });
+        }
         setToast({ message: "Product updated successfully", type: "success" });
       } else {
-        await createProduct(payload);
+        const response = await createProduct(payload);
+        if (Number(form.stock_to_add) > 0) {
+          await createReceipt({
+            product_id: response.data.id,
+            location_id: Number(form.location_id),
+            quantity: Number(form.stock_to_add),
+            reference: "Opening stock",
+            supplier: "Opening stock",
+          });
+        }
         setToast({ message: "Product created successfully", type: "success" });
       }
 
@@ -467,40 +496,45 @@ export default function Products() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Primary Warehouse Location</label>
+                <label className="form-label">Warehouse</label>
+                <select
+                  className="form-select"
+                  value={form.warehouse_id}
+                  onChange={(e) => updateField("warehouse_id", e.target.value)}
+                >
+                  <option value="">Select warehouse</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Storage Area</label>
                 <select
                   className="form-select"
                   value={form.location_id}
                   onChange={(e) => updateField("location_id", e.target.value)}
+                  disabled={!form.warehouse_id}
                 >
-                  <option value="">Select storage location</option>
-                  {warehouses.map((w) => (
-                    <option key={`w-${w.id}`} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                  {locations.map((l) => (
-                    <option key={`l-${l.id}`} value={l.id}>
-                      &nbsp;&nbsp;↳ {l.name}
-                    </option>
+                  <option value="">Select area</option>
+                  {locations.filter((location) => Number(location.warehouse_id) === Number(form.warehouse_id)).map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {!editingProduct && (
-              <div className="form-group">
-                <label className="form-label">Initial Opening Stock</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-input"
-                  value={form.initial_stock}
-                  onChange={(e) => updateField("initial_stock", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            )}
+            <div className="form-group">
+              <label className="form-label">{editingProduct ? "Stock quantity to add" : "Opening stock quantity"}</label>
+              <input
+                type="number"
+                min="0"
+                className="form-input"
+                value={form.stock_to_add}
+                onChange={(e) => updateField("stock_to_add", e.target.value)}
+                placeholder="0"
+              />
+            </div>
 
             <div className="modal-actions" style={{ marginTop: 24 }}>
               <button

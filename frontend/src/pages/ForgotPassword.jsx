@@ -5,6 +5,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { forgotPassword, verifyOtp } from "../services/authApi";
+import { loginWithOtp } from "../services/authApi";
+import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
 export default function ForgotPassword() {
@@ -13,7 +15,7 @@ export default function ForgotPassword() {
   const [otp, setOtp]         = useState("");
   const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
-  const [simulatedMail, setSimulatedMail] = useState(null);
+  const { loginUser } = useAuth();
   const navigate = useNavigate();
 
   async function handleSendOtp(e) {
@@ -26,13 +28,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await forgotPassword(email);
-      setSimulatedMail({
-        to: email,
-        code: "123456",
-        expiresIn: "10 minutes",
-        timestamp: new Date().toLocaleTimeString(),
-      });
+      await forgotPassword(email);
       setStep("otp");
     } catch (err) {
       setError(err.message);
@@ -51,19 +47,14 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      await verifyOtp(email, otp);
-      navigate(
-        `/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`
-      );
+      const result = await loginWithOtp(email, otp);
+      loginUser(result.token, result.user);
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleAutoFillOtp() {
-    setOtp("123456");
   }
 
   return (
@@ -79,7 +70,7 @@ export default function ForgotPassword() {
           <form className="auth-form" onSubmit={handleSendOtp}>
             <h2>Reset Password</h2>
             <p className="auth-desc">
-              Enter your work email address. We will dispatch a secure 6-digit one-time password (OTP) directly to your mail.
+              Enter the email address used for your account to continue to code verification.
             </p>
 
             {error && <div className="auth-error">{error}</div>}
@@ -110,37 +101,10 @@ export default function ForgotPassword() {
           </form>
         ) : (
           <form className="auth-form" onSubmit={handleVerifyOtp}>
-            <h2>Verify Mail OTP</h2>
+            <h2>Enter Verification Code</h2>
             <p className="auth-desc">
-              We've dispatched an authentication code to <strong>{email}</strong>.
+              Enter the 6-digit code for <strong>{email}</strong> to sign in.
             </p>
-
-            {/* Simulated Live Mail Inbox Notification for Hackathon Judges */}
-            {simulatedMail && (
-              <div className="simulated-mail-card">
-                <div className="mail-card-header">
-                  <span className="mail-icon">📨</span>
-                  <div>
-                    <strong>Mail Notification: Password Reset OTP</strong>
-                    <div className="mail-sender">From: security@stocksense.com • {simulatedMail.timestamp}</div>
-                  </div>
-                </div>
-                <div className="mail-card-body">
-                  <p>Your one-time security verification code is:</p>
-                  <div className="mail-otp-box">
-                    <span className="mail-otp-digits">{simulatedMail.code}</span>
-                    <button
-                      type="button"
-                      className="mail-autofill-btn"
-                      onClick={handleAutoFillOtp}
-                    >
-                      ⚡ Auto-fill
-                    </button>
-                  </div>
-                  <span className="mail-expiry">Valid for {simulatedMail.expiresIn}. Do not share with anyone.</span>
-                </div>
-              </div>
-            )}
 
             {error && <div className="auth-error">{error}</div>}
 
@@ -151,7 +115,7 @@ export default function ForgotPassword() {
                 className="form-input otp-input"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                placeholder="123456"
+                placeholder="Enter 6-digit code"
                 maxLength={6}
                 required
               />
@@ -162,7 +126,27 @@ export default function ForgotPassword() {
               className="btn btn--primary btn--lg auth-submit"
               disabled={loading}
             >
-              {loading ? "Validating Code..." : "Verify Code & Proceed"}
+              {loading ? "Signing in..." : "Verify Code & Sign In"}
+            </button>
+
+            <button
+              type="button"
+              className="auth-link-btn"
+              disabled={loading}
+              onClick={async () => {
+                setError("");
+                setLoading(true);
+                try {
+                  await verifyOtp(email, otp);
+                  navigate(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`);
+                } catch (err) {
+                  setError(err.message);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Set a new password instead
             </button>
 
             <div className="auth-extras" style={{ justifyContent: "center" }}>

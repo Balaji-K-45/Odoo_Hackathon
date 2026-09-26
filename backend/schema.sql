@@ -138,10 +138,17 @@ CREATE TABLE IF NOT EXISTS otp_tokens (
 -- Seed Data — default warehouse + locations + categories
 -- ============================================================
 
-INSERT IGNORE INTO warehouses (name) VALUES ('Main Warehouse');
+INSERT IGNORE INTO warehouses (name)
+VALUES ('Main Warehouse');
 
-INSERT IGNORE INTO locations (warehouse_id, name)
-VALUES (1, 'Main Storage'), (1, 'Production Rack');
+INSERT INTO locations (warehouse_id, name)
+SELECT w.id, 'Main Storage'
+FROM warehouses w
+WHERE w.name = 'Main Warehouse'
+    AND NOT EXISTS (
+            SELECT 1 FROM locations l
+            WHERE l.warehouse_id = w.id AND l.name = 'Main Storage'
+    );
 
 INSERT IGNORE INTO categories (name)
 VALUES ('Raw Material'), ('Finished Goods'), ('Consumables');

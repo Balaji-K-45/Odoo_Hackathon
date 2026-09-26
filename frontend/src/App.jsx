@@ -27,6 +27,7 @@ import Adjustments from "./pages/Adjustments";
 import MoveHistory from "./pages/MoveHistory";
 import WarehouseSettings from "./pages/WarehouseSettings";
 import Profile from "./pages/Profile";
+import Analysis from "./pages/Analysis";
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/analysis" element={<Analysis />} />
             <Route path="/operations/receipts" element={<Receipts />} />
             <Route path="/operations/deliveries" element={<Deliveries />} />
             <Route path="/operations/transfers" element={<Transfers />} />

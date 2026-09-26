@@ -51,12 +51,19 @@ def get_operations_by_type(operation_type, limit=50):
                    o.notes, o.user_id, o.created_at,
                    oi.product_id, oi.quantity,
                    oi.source_location_id, oi.destination_location_id,
-                   p.name  AS product_name, p.sku,
+                   p.name  AS product_name, p.sku, p.uom,
+                   c.name AS category_name,
+                   u.name AS user_name,
+                   (SELECT SUM(sl.quantity_change)
+                    FROM stock_ledger sl
+                    WHERE sl.operation_id = o.id) AS quantity_change,
                    sl.name AS source_location_name,
                    dl.name AS destination_location_name
             FROM operations o
             JOIN operation_items oi ON oi.operation_id = o.id
             JOIN products        p  ON p.id  = oi.product_id
+            LEFT JOIN categories c  ON c.id = p.category_id
+            LEFT JOIN users u       ON u.id = o.user_id
             LEFT JOIN locations sl  ON sl.id = oi.source_location_id
             LEFT JOIN locations dl  ON dl.id = oi.destination_location_id
             WHERE o.operation_type = %s

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login, DEMO_ACCOUNTS } from "../services/authApi";
+import { USE_MOCKS } from "../services/api";
 import "./Auth.css";
 
 export default function Login() {
@@ -67,6 +68,7 @@ export default function Login() {
         </div>
 
         <div className="auth-content">
+          {USE_MOCKS && <>
           {/* Target Audience Quick Login Banner */}
           <div className="demo-roles-section">
             <div className="demo-roles-header">
@@ -120,12 +122,13 @@ export default function Login() {
           <div className="auth-divider">
             <span>or sign in with credentials</span>
           </div>
+          </>}
 
           {/* Standard Form */}
           <form className="auth-form" onSubmit={handleSubmit}>
             {error && <div className="auth-error">{error}</div>}
 
-            <div className="form-group">
+            {USE_MOCKS && <div className="form-group">
               <label className="form-label">Role</label>
               <div className="role-toggle-group">
                 <button
@@ -143,7 +146,7 @@ export default function Login() {
                   👷 Warehouse Staff
                 </button>
               </div>
-            </div>
+            </div>}
 
             <div className="form-group">
               <label className="form-label">Email</label>
@@ -178,7 +181,7 @@ export default function Login() {
             </div>
 
             <button type="submit" className="btn btn--primary btn--lg auth-submit" disabled={loading}>
-              {loading ? "Signing in..." : `Sign In as ${selectedRole}`}
+              {loading ? "Signing in..." : USE_MOCKS ? `Sign In as ${selectedRole}` : "Sign In"}
             </button>
 
             <p className="auth-switch">

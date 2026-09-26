@@ -4,10 +4,11 @@
 
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { USE_MOCKS } from "../services/api";
 import "./Sidebar.css";
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user, isStaff, isManager, canManageSettings, switchRole } = useAuth();
+  const { user, isStaff, canManageSettings, switchRole } = useAuth();
 
   // Navigation items per role specification:
   // Both roles see Dashboard, Products, Receipts, Deliveries, Transfers, Adjustments, Move History.
@@ -20,6 +21,7 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: "📦",
       badge: isStaff ? "View-only" : null,
     },
+    ...(canManageSettings ? [{ label: "Analysis", path: "/analysis", icon: "📈" }] : []),
 
     { type: "divider", label: "Operations" },
 
@@ -49,7 +51,6 @@ export default function Sidebar({ isOpen, onClose }) {
           <span className="sidebar-logo">◈</span>
           <div className="sidebar-brand-text">
             <h2 className="sidebar-title">StockSense</h2>
-            <span className="sidebar-subtitle">Odoo Hackathon</span>
           </div>
         </div>
 
@@ -71,7 +72,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </p>
 
           {/* Quick Demo Switcher button */}
-          <button
+          {USE_MOCKS && <button
             type="button"
             className="sidebar-role-switch-btn"
             onClick={() =>
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, onClose }) {
             title="Click to quickly switch target user during demo"
           >
             Switch to {isStaff ? "Inventory Manager" : "Warehouse Staff"} ⇄
-          </button>
+          </button>}
         </div>
 
         {/* Nav Links */}

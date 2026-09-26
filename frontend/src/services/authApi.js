@@ -2,10 +2,9 @@
 // src/services/authApi.js — Authentication API service
 // ──────────────────────────────────────────────────────────
 
-import { apiPost, apiGet } from "./api";
+import { apiPost, apiGet, USE_MOCKS } from "./api";
 
 // ── Flag: set to false once the backend auth endpoints are ready ──
-const USE_MOCK = true;
 
 // ── Role Constants ───────────────────────────────────────
 export const ROLES = {
@@ -50,7 +49,7 @@ const MOCK_TOKEN = "mock-jwt-token-stocksense";
 // ── Public API ───────────────────────────────────────────
 
 export async function login(email, password, roleHint) {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(450);
     const normalizedEmail = (email || "").trim().toLowerCase();
     const normalizedHint = (roleHint || "").toUpperCase().replace(/[\s-]/g, "_");
@@ -103,11 +102,12 @@ export async function login(email, password, roleHint) {
     throw new Error("Invalid email or password");
   }
 
-  return apiPost("/api/auth/login", { email, password });
+  const response = await apiPost("/api/auth/login", { email, password });
+  return { ...response, ...response.data };
 }
 
 export async function signup(data) {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(500);
     const isStaff =
       (data.role || "").toUpperCase().includes("STAFF") || data.role === "Warehouse Staff";
@@ -123,11 +123,12 @@ export async function signup(data) {
       },
     };
   }
-  return apiPost("/api/auth/signup", data);
+  const response = await apiPost("/api/auth/signup", data);
+  return { ...response, ...response.data };
 }
 
 export async function forgotPassword(email) {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(400);
     return { success: true, message: "OTP sent to your email" };
   }
@@ -135,30 +136,52 @@ export async function forgotPassword(email) {
 }
 
 export async function verifyOtp(email, otp) {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(400);
-    if (otp === "123456") {
+    if (otp === "568723") {
       return { success: true, message: "OTP verified" };
     }
-    throw new Error("Invalid OTP (use 123456 for demo)");
+    throw new Error("Invalid OTP (use 568723 for demo)");
   }
   return apiPost("/api/auth/verify-otp", { email, otp });
 }
 
+export async function loginWithOtp(email, otp) {
+  if (USE_MOCKS) {
+    await delay(250);
+    if (otp !== "568723") throw new Error("Invalid sign-in code (use 568723 in mock mode)");
+    return { success: true, token: `${MOCK_TOKEN}-staff`, user: DEMO_ACCOUNTS.staff };
+  }
+  const response = await apiPost("/api/auth/otp-login", { email, otp });
+  return { ...response, ...response.data };
+}
+
 export async function resetPassword(email, otp, newPassword) {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(400);
     return { success: true, message: "Password reset successfully" };
   }
   return apiPost("/api/auth/reset-password", { email, otp, new_password: newPassword });
 }
 
+export async function changePassword(currentPassword, newPassword) {
+  if (USE_MOCKS) {
+    await delay(300);
+    return { success: true, message: "Password changed successfully" };
+  }
+  return apiPost("/api/auth/change-password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}
+
 export async function getProfile() {
-  if (USE_MOCK) {
+  if (USE_MOCKS) {
     await delay(200);
     return { success: true, user: DEMO_ACCOUNTS.manager };
   }
-  return apiGet("/api/auth/me");
+  const response = await apiGet("/api/auth/me");
+  return { ...response, user: response.data };
 }
 
 export async function getMe() {

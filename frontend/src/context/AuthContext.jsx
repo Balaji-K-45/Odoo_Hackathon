@@ -3,7 +3,8 @@
 // ──────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { DEMO_ACCOUNTS, ROLES } from "../services/authApi";
+import { DEMO_ACCOUNTS, getMe, ROLES } from "../services/authApi";
+import { USE_MOCKS } from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -23,24 +24,37 @@ export function normalizeRole(role) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
-  const [token, setToken]     = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Restore from localStorage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-    const savedUser  = localStorage.getItem(STORAGE_KEY_USER);
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Error restoring user session", e);
-      }
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_USER) || "null");
+    } catch {
+      return null;
     }
-    setLoading(false);
-  }, []);
+  });
+  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY_TOKEN));
+  const [loading, setLoading] = useState(() => !USE_MOCKS && Boolean(localStorage.getItem(STORAGE_KEY_TOKEN)));
+
+  useEffect(() => {
+    if (!token || USE_MOCKS) return undefined;
+    let active = true;
+    getMe()
+      .then(({ user: currentUser }) => {
+        if (!active) return;
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
+        setUser(currentUser);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.removeItem(STORAGE_KEY_TOKEN);
+        localStorage.removeItem(STORAGE_KEY_USER);
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [token]);
 
   function loginUser(token, userData) {
     localStorage.setItem(STORAGE_KEY_TOKEN, token);
@@ -54,10 +68,12 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY_USER);
     setToken(null);
     setUser(null);
+    setLoading(false);
   }
 
   // Quick switch role utility (handy during hackathon demo)
   function switchRole(targetRole) {
+    if (!USE_MOCKS) return;
     const norm = normalizeRole(targetRole);
     const isStaff = norm === ROLES.WAREHOUSE_STAFF;
     const newProfile = isStaff ? DEMO_ACCOUNTS.staff : DEMO_ACCOUNTS.manager;

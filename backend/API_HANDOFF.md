@@ -14,9 +14,13 @@ Authenticated requests use `Authorization: Bearer <token>`. JSON endpoints retur
 | `/api/auth/profile` | GET | Any authenticated role | Existing alias for `/me` |
 | `/api/auth/forgot-password` | POST | Public | Request password-reset OTP |
 | `/api/auth/verify-otp` | POST | Public | Verify reset OTP |
+| `/api/auth/otp-login` | POST | Public | Sign in a Warehouse Staff account using its valid one-time email code |
 | `/api/auth/reset-password` | POST | Public | Set a new password |
+| `/api/auth/change-password` | POST | Any authenticated role | Change password after verifying the current password |
 
 Signup body: `{ "name": "A User", "email": "user@example.com", "password": "secret" }`. A submitted `role` is ignored. Login body: `{ "email": "user@example.com", "password": "secret" }`. Login and signup return `data.token` and `data.user`, including `id`, `name`, `email`, and `role`.
+
+Forgot-password emails require SMTP configuration. OTPs expire 10 minutes after they are stored using the database clock, and are invalidated if email delivery fails. OTP sign-in is restricted to `WAREHOUSE_STAFF`; any wrong or reused code is rejected. For a private local demo only, set `APP_ENV=development` and `DEV_OTP_CODE=568723` to enable a fixed staff-only code when SMTP is unavailable. Never enable that fallback outside local development. Change-password body: `{ "current_password": "...", "new_password": "..." }`; new passwords require at least 8 characters.
 
 ## Inventory APIs
 
@@ -30,10 +34,12 @@ Signup body: `{ "name": "A User", "email": "user@example.com", "password": "secr
 | `/api/categories` | POST | Manager | Create category |
 | `/api/warehouses` | GET | Both | List warehouses |
 | `/api/warehouses` | POST | Manager | Create warehouse |
+| `/api/warehouses/<id>` | DELETE | Manager | Delete an unused warehouse; returns 409 if stock or operation history references it |
 | `/api/locations` | GET | Both | List locations; accepts `warehouse_id` |
 | `/api/locations` | POST | Manager | Create location |
 | `/api/stock` | GET | Both | List balances; accepts `product_id`, `location_id`, `warehouse_id`, `category_id` |
 | `/api/dashboard` | GET | Both | KPIs, low/out-of-stock counts, and recent stock activity |
+| `/api/analysis` | GET | Manager | 12-month operation trends, stock health, top stock balances, 90-day delivery rankings, and 14-day activity |
 | `/api/ledger` | GET | Both | Stock history; accepts `product_id`, `operation_type`, `location_id`, `limit` |
 
 Product body: `{ "name": "Steel Rod", "sku": "STEEL-001", "category_id": 1, "uom": "kg", "reorder_level": 10 }`.
@@ -64,4 +70,4 @@ const response = await fetch("http://localhost:5000/api/stock?warehouse_id=1", {
 const result = await response.json();
 ```
 
-Set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, and a strong `SECRET_KEY` in `backend/.env`. Initialize the schema with the project’s schema initialization path, then run `python app.py` from `backend`; the development server listens on `127.0.0.1:5000`.
+Set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, a strong `SECRET_KEY`, and `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, and `SMTP_USE_TLS` in `backend/.env`. For Gmail, use an App Password in `SMTP_PASSWORD`, not the account's login password. See `backend/.env.example`. Initialize the schema with the project’s schema initialization path, then run `python app.py` from `backend`; the development server listens on `127.0.0.1:5000`.

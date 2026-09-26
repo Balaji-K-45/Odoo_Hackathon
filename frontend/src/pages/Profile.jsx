@@ -3,10 +3,42 @@
 // ──────────────────────────────────────────────────────────
 
 import { useAuth } from "../context/AuthContext";
+import { USE_MOCKS } from "../services/api";
+import { changePassword } from "../services/authApi";
+import { useState } from "react";
 import "./Operations.css";
 
 export default function Profile() {
-  const { user, isStaff, isManager, switchRole } = useAuth();
+  const { user, isStaff, switchRole } = useAuth();
+  const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  async function savePassword(event) {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordMessage("");
+    if (passwords.next.length < 8) {
+      setPasswordError("New password must be at least 8 characters");
+      return;
+    }
+    if (passwords.next !== passwords.confirm) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const result = await changePassword(passwords.current, passwords.next);
+      setPasswordMessage(result.message || result.data?.message || "Password changed successfully");
+      setPasswords({ current: "", next: "", confirm: "" });
+    } catch (error) {
+      setPasswordError(error.message);
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   return (
     <div>
@@ -63,15 +95,38 @@ export default function Profile() {
               : "As an Inventory Manager, you maintain operational oversight over the entire supply chain. You monitor stock levels, process incoming receipts from suppliers, validate customer delivery orders, set minimum stock rules, and manage warehouse locations."}
           </p>
 
-          <button
+          {USE_MOCKS && <button
             type="button"
             className="btn btn--secondary"
             onClick={() => switchRole(isStaff ? "Inventory Manager" : "Warehouse Staff")}
           >
             Switch to {isStaff ? "Inventory Manager" : "Warehouse Staff"} Persona ⇄
-          </button>
+          </button>}
         </div>
       </div>
+
+      <section className="section-card" style={{ maxWidth: 560, marginTop: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Change Password</h2>
+        <form className="auth-form" onSubmit={savePassword}>
+          {passwordError && <div className="auth-error" role="alert">{passwordError}</div>}
+          {passwordMessage && <div className="auth-success" role="status">{passwordMessage}</div>}
+          <div className="form-group">
+            <label className="form-label" htmlFor="current-password">Current password</label>
+            <input id="current-password" className="form-input" type="password" autoComplete="current-password" required value={passwords.current} onChange={(event) => setPasswords({ ...passwords, current: event.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="new-password">New password</label>
+            <input id="new-password" className="form-input" type="password" autoComplete="new-password" minLength={8} required value={passwords.next} onChange={(event) => setPasswords({ ...passwords, next: event.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="confirm-password">Confirm new password</label>
+            <input id="confirm-password" className="form-input" type="password" autoComplete="new-password" minLength={8} required value={passwords.confirm} onChange={(event) => setPasswords({ ...passwords, confirm: event.target.value })} />
+          </div>
+          <button className="btn btn--primary" type="submit" disabled={savingPassword}>
+            {savingPassword ? "Updating..." : "Update Password"}
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

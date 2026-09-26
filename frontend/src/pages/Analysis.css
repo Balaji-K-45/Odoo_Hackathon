@@ -1,0 +1,58 @@
+.analysis-page { display: grid; gap: 20px; }
+.analysis-page .page-header { align-items: end; }
+.analysis-period, .analysis-muted { color: var(--text-muted); font-size: 12px; }
+.analysis-section { min-width: 0; padding: 20px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; }
+.analysis-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.analysis-section-heading h2 { margin: 4px 0 0; font-size: 18px; }
+.analysis-kicker { color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.analysis-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--text-secondary); font-size: 12px; }
+.analysis-legend span, .health-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.analysis-dot { display: inline-block; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; }
+.dot-receipt, .dot-healthy { background: #16856b; }
+.dot-delivery, .dot-empty { background: #db624d; }
+.dot-transfer { background: #3478aa; }
+.dot-adjustment { background: #c58a22; }
+.dot-low { background: #c58a22; }
+.analysis-trend-chart { display: grid; grid-template-columns: repeat(12, minmax(30px, 1fr)); gap: 10px; min-height: 220px; align-items: end; padding: 10px 6px 0; border-bottom: 1px solid var(--border-color); }
+.trend-month { display: grid; grid-template-rows: 18px 1fr 24px; gap: 5px; min-width: 0; height: 210px; text-align: center; }
+.trend-total { color: var(--text-secondary); font-size: 11px; }
+.trend-column { display: flex; flex-direction: column; justify-content: end; height: 100%; overflow: hidden; border-radius: 4px 4px 0 0; background: var(--bg-body); }
+.trend-segment { display: block; min-height: 0; }
+.trend-segment.receipt { background: #16856b; }
+.trend-segment.delivery { background: #db624d; }
+.trend-segment.transfer { background: #3478aa; }
+.trend-segment.adjustment { background: #c58a22; }
+.trend-month-label { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+.analysis-summary-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); gap: 20px; align-items: start; }
+.stock-total-count { font-size: 24px; }
+.stock-total-count small, .product-stock-label small { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.stock-health-list { display: grid; gap: 13px; }
+.health-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; color: var(--text-secondary); font-size: 13px; }
+.health-row strong { color: var(--text-primary); }
+.health-track, .product-stock-track { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 4px; background: var(--bg-body); }
+.health-fill, .product-stock-track i { display: block; height: 100%; border-radius: inherit; }
+.health-fill.healthy { background: #16856b; }
+.health-fill.low { background: #c58a22; }
+.health-fill.empty { background: #db624d; }
+.operation-type-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.operation-type-list div { display: flex; justify-content: space-between; padding: 8px 10px; background: var(--bg-body); border-radius: 4px; color: var(--text-secondary); font-size: 12px; text-transform: capitalize; }
+.operation-type-list strong { color: var(--text-primary); }
+.product-stock-section { display: grid; gap: 14px; }
+.product-stock-section .analysis-section-heading { margin-bottom: 4px; }
+.product-stock-row { display: grid; gap: 7px; }
+.product-stock-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.product-stock-label > span { display: grid; min-width: 0; }
+.product-stock-label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-stock-label > strong { flex: 0 0 auto; }
+.product-stock-track i { background: #3478aa; }
+.analysis-table-wrap { width: 100%; overflow-x: auto; }
+.analysis-table { min-width: 680px; }
+.analysis-cell-subtitle { display: block; color: var(--text-muted); font-size: 11px; }
+.analysis-empty { padding: 18px; color: var(--text-muted); text-align: center; }
+@media (max-width: 760px) {
+  .analysis-summary-grid { grid-template-columns: 1fr; }
+  .analysis-section { padding: 16px; }
+  .analysis-section-heading { align-items: flex-start; flex-direction: column; }
+  .analysis-trend-chart { grid-template-columns: repeat(12, minmax(24px, 1fr)); gap: 6px; overflow-x: auto; }
+  .trend-month { height: 180px; }
+}

@@ -5,13 +5,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup } from "../services/authApi";
+import { USE_MOCKS } from "../services/api";
 import "./Auth.css";
 
 export default function Signup() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    role: "Warehouse Staff",
+    role: "WAREHOUSE_STAFF",
     password: "",
     confirmPassword: "",
   });
@@ -80,28 +81,9 @@ export default function Signup() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Target Role</label>
-            <div className="role-toggle-group">
-              <button
-                type="button"
-                className={`role-toggle-btn ${form.role === "Inventory Manager" ? "active" : ""}`}
-                onClick={() => update("role", "Inventory Manager")}
-              >
-                👨‍💼 Manager
-              </button>
-              <button
-                type="button"
-                className={`role-toggle-btn ${form.role === "Warehouse Staff" ? "active" : ""}`}
-                onClick={() => update("role", "Warehouse Staff")}
-              >
-                👷 Warehouse Staff
-              </button>
-            </div>
-            <span className="form-help-text">
-              {form.role === "Inventory Manager"
-                ? "Oversee receipts, deliveries, inventory valuation and catalog."
-                : "Execute transfers, picking, shelving, and physical stock counts."}
-            </span>
+            <label className="form-label">Account Role</label>
+            <input className="form-input" value="Warehouse Staff" readOnly />
+            {!USE_MOCKS && <span className="form-help-text">Manager accounts are provisioned by an administrator.</span>}
           </div>
 
           <div className="form-group">
@@ -138,7 +120,7 @@ export default function Signup() {
           </div>
 
           <button type="submit" className="btn btn--primary btn--lg auth-submit" disabled={loading}>
-            {loading ? "Creating account..." : `Sign Up as ${form.role}`}
+            {loading ? "Creating account..." : "Create Warehouse Staff Account"}
           </button>
 
           <p className="auth-switch">

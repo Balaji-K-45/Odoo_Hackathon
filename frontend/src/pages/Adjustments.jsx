@@ -4,14 +4,16 @@
 
 import { useState, useEffect } from "react";
 import { Modal, Toast, LoadingSpinner, ErrorMessage, EmptyState, StatusBadge, SearchBar } from "../components/ui";
-import { getAdjustments, createAdjustment } from "../services/inventoryApi";
+import { getAdjustments, createAdjustment, getStock } from "../services/inventoryApi";
 import { getProducts } from "../services/productApi";
-import { getWarehouses, getLocations } from "../services/warehouseApi";
+import { getLocations } from "../services/warehouseApi";
+import { USE_MOCKS } from "../services/api";
 
 export default function Adjustments() {
   const [adjustments, setAdjustments]   = useState([]);
   const [products, setProducts]         = useState([]);
   const [allLocations, setAllLocations] = useState([]);
+  const [stockRows, setStockRows] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState("");
   const [search, setSearch]             = useState("");
@@ -27,16 +29,16 @@ export default function Adjustments() {
   async function loadData() {
     setLoading(true); setError("");
     try {
-      const [aRes, pRes, wRes, lRes] = await Promise.all([
+      const [aRes, pRes, lRes, stockRes] = await Promise.all([
         getAdjustments(),
         getProducts(),
-        getWarehouses(),
         getLocations(),
+        getStock(),
       ]);
       setAdjustments(aRes.data || []);
       setProducts(pRes.data || []);
-      const combined = [...(wRes.data || []), ...(lRes.data || [])];
-      setAllLocations(combined);
+      setAllLocations(lRes.data || []);
+      setStockRows(stockRes.data || []);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }
@@ -46,11 +48,19 @@ export default function Adjustments() {
       const next = { ...prev, [k]: v };
       if (k === "product_id") {
         const p = products.find((x) => x.id === Number(v));
-        if (p) { next.product = p.name; next.system_qty = String(p.stock); }
+        if (p) next.product = p.name;
       }
       if (k === "location_id") {
         const loc = allLocations.find((x) => x.id === Number(v));
         if (loc) next.location = loc.name;
+      }
+      if (k === "product_id" || k === "location_id") {
+        const balance = stockRows.find((row) =>
+          Number(row.product_id) === Number(next.product_id) &&
+          Number(row.location_id) === Number(next.location_id)
+        );
+        const product = products.find((item) => item.id === Number(next.product_id));
+        next.system_qty = String(balance?.quantity ?? (USE_MOCKS ? product?.stock ?? 0 : 0));
       }
       return next;
     });

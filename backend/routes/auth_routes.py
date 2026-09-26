@@ -15,7 +15,8 @@ Protected routes (token required, any authenticated role):
 from flask import Blueprint, request, jsonify, g
 from middleware.auth import login_required, roles_required, ALL_ROLES
 from services.auth_service import (
-    signup, login, send_otp, verify_otp, reset_password,
+    signup, login, send_otp, verify_otp, reset_password, change_password,
+    login_with_otp,
 )
 from models.user import get_user_by_id
 import jwt
@@ -67,7 +68,8 @@ def forgot_password():
     data = request.get_json() or {}
     result, error = send_otp(email=data.get("email"))
     if error:
-        return jsonify({"success": False, "message": error}), 400
+        status = 400 if error == "Email is required" else 503
+        return jsonify({"success": False, "message": error}), status
     return jsonify({"success": True, "data": result}), 200
 
 
@@ -83,6 +85,19 @@ def do_verify_otp():
     if error:
         return jsonify({"success": False, "message": error}), 400
     return jsonify({"success": True, "data": result}), 200
+
+
+@auth_bp.route("/api/auth/otp-login", methods=["POST"])
+def do_otp_login():
+    data = request.get_json() or {}
+    result, error = login_with_otp(email=data.get("email"), otp=data.get("otp"))
+    if error:
+        return jsonify({"success": False, "message": error}), 401
+    return jsonify({
+        "success": True,
+        "message": "Signed in successfully",
+        "data": result,
+    }), 200
 
 
 # ── Reset Password (public) ───────────────────────────────────────────────────
@@ -109,3 +124,18 @@ def do_reset_password():
 def profile():
     """Returns the currently logged-in user's profile."""
     return jsonify({"success": True, "data": g.current_user}), 200
+
+
+@auth_bp.route("/api/auth/change-password", methods=["POST"])
+@login_required
+@roles_required(*ALL_ROLES)
+def do_change_password():
+    data = request.get_json() or {}
+    result, error = change_password(
+        email=g.current_user["email"],
+        current_password=data.get("current_password"),
+        new_password=data.get("new_password"),
+    )
+    if error:
+        return jsonify({"success": False, "message": error}), 400
+    return jsonify({"success": True, **result}), 200

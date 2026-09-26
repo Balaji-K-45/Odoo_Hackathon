@@ -5,16 +5,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { KPICard, LoadingSpinner, ErrorMessage, FilterSelect, StatusBadge } from "../components/ui";
-import { getDashboardKPIs, getRecentActivity } from "../services/dashboardApi";
+import { getDashboardKPIs, getRecentActivity, getWarehouses, getCategories } from "../services/dashboardApi";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-  const { user, isStaff, isManager } = useAuth();
+  const { isStaff, isManager } = useAuth();
   const navigate = useNavigate();
 
   const [kpis, setKpis]         = useState(null);
   const [activity, setActivity] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
 
@@ -33,12 +35,16 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
     try {
-      const [kpiRes, actRes] = await Promise.all([
+      const [kpiRes, actRes, warehouseRes, categoryRes] = await Promise.all([
         getDashboardKPIs(),
         getRecentActivity(),
+        getWarehouses(),
+        getCategories(),
       ]);
       setKpis(kpiRes.data);
       setActivity(actRes.data);
+      setWarehouses(warehouseRes.data || []);
+      setCategories(categoryRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -222,9 +228,7 @@ export default function Dashboard() {
           onChange={setWarehouse}
           options={[
             { value: "all", label: "All Warehouses" },
-            { value: "Main Warehouse", label: "Main Warehouse" },
-            { value: "Warehouse 2", label: "Warehouse 2" },
-            { value: "Production Rack", label: "Production Rack" },
+            ...warehouses.map((item) => ({ value: item.name, label: item.name })),
           ]}
         />
         <FilterSelect
@@ -233,10 +237,7 @@ export default function Dashboard() {
           onChange={setCategory}
           options={[
             { value: "all", label: "All Categories" },
-            { value: "Raw Material", label: "Raw Material" },
-            { value: "Furniture", label: "Furniture" },
-            { value: "Packaging", label: "Packaging" },
-            { value: "Electronics", label: "Electronics" },
+            ...categories.map((item) => ({ value: item.name, label: item.name })),
           ]}
         />
       </div>

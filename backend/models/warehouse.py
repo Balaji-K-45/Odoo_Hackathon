@@ -2,7 +2,7 @@
 models/warehouse.py  —  MySQL version
 """
 
-from database import get_db
+from database import get_db, transaction
 
 
 # ── Warehouses ──────────────────────────────────────────────────────────────
@@ -23,11 +23,40 @@ def get_warehouse_by_id(warehouse_id):
 
 def create_warehouse(name):
     db = get_db()
-    with db.cursor() as cur:
-        cur.execute("INSERT INTO warehouses (name) VALUES (%s)", (name,))
-        new_id = cur.lastrowid
-    db.commit()
+    with transaction():
+        with db.cursor() as cur:
+            cur.execute("INSERT INTO warehouses (name) VALUES (%s)", (name,))
+            new_id = cur.lastrowid
+            cur.execute(
+                "INSERT INTO locations (warehouse_id, name) VALUES (%s, %s)",
+                (new_id, "Main Storage"),
+            )
     return new_id
+
+
+def delete_warehouse(warehouse_id):
+    db = get_db()
+    with transaction():
+        with db.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    (SELECT COUNT(*) FROM stock s
+                     JOIN locations l ON l.id = s.location_id
+                     WHERE l.warehouse_id = %s) AS stock_count,
+                    (SELECT COUNT(*) FROM stock_ledger sl
+                     JOIN locations l ON l.id = sl.location_id
+                     WHERE l.warehouse_id = %s) AS ledger_count,
+                    (SELECT COUNT(*) FROM operation_items oi
+                     JOIN locations l ON l.id = oi.source_location_id OR l.id = oi.destination_location_id
+                     WHERE l.warehouse_id = %s) AS operation_count
+            """, (warehouse_id, warehouse_id, warehouse_id))
+            usage = cur.fetchone()
+            if any(usage.values()):
+                return "Warehouse contains stock or operation history and cannot be deleted"
+
+            cur.execute("DELETE FROM locations WHERE warehouse_id=%s", (warehouse_id,))
+            cur.execute("DELETE FROM warehouses WHERE id=%s", (warehouse_id,))
+    return None
 
 
 # ── Locations ───────────────────────────────────────────────────────────────

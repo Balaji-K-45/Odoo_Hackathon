@@ -34,9 +34,21 @@ def get_all_products(search=None, category_id=None):
     query = """
         SELECT p.id, p.name, p.sku, p.category_id,
                c.name AS category_name,
-               p.uom, p.reorder_level, p.created_at, p.updated_at
+             p.uom, p.reorder_level, p.created_at, p.updated_at,
+             stock_locations.location_names
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
+         LEFT JOIN (
+             SELECT s.product_id,
+                 GROUP_CONCAT(
+                  DISTINCT CONCAT(w.name, ' / ', l.name)
+                  ORDER BY w.name, l.name SEPARATOR ', '
+                 ) AS location_names
+             FROM stock s
+             JOIN locations l ON l.id = s.location_id
+             JOIN warehouses w ON w.id = l.warehouse_id
+             GROUP BY s.product_id
+         ) AS stock_locations ON stock_locations.product_id = p.id
         WHERE 1=1
     """
     params = []

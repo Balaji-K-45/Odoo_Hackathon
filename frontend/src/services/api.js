@@ -2,7 +2,8 @@
 // src/services/api.js — Core API helpers with 403 Forbidden handling
 // ──────────────────────────────────────────────────────────
 
-const API_BASE = import.meta.env.VITE_API_URL;
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
 /**
  * Attach the stored auth token to every request.

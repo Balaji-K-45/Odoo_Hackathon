@@ -63,6 +63,7 @@ from routes.ledger_routes     import ledger_bp
 from routes.dashboard_routes  import dashboard_bp
 from routes.auth_routes       import auth_bp
 from routes.stock_routes      import stock_bp
+from routes.analysis_routes   import analysis_bp
 
 app.register_blueprint(product_bp)
 app.register_blueprint(category_bp)
@@ -75,6 +76,7 @@ app.register_blueprint(ledger_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(stock_bp)
+app.register_blueprint(analysis_bp)
 
 # ── Health check ───────────────────────────────────────────────────────────
 @app.route("/api/health", methods=["GET"])

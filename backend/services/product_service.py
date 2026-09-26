@@ -17,6 +17,7 @@ def list_products(search=None, category_id=None):
     for p in products:
         total = get_total_stock_for_product(p["id"])
         p["total_stock"] = total
+        p["location"] = p.pop("location_names", None) or ""
         p["stock_status"] = _stock_status(total, p["reorder_level"])
     return products
 

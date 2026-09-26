@@ -13,7 +13,7 @@ from middleware.auth import (
     INVENTORY_MANAGER, WAREHOUSE_STAFF,
 )
 from models.warehouse import (
-    get_all_warehouses, get_warehouse_by_id, create_warehouse,
+    get_all_warehouses, get_warehouse_by_id, create_warehouse, delete_warehouse,
     get_all_locations, get_location_by_id, create_location,
 )
 
@@ -46,6 +46,18 @@ def add_warehouse():
         "message": "Warehouse created",
         "data": get_warehouse_by_id(wh_id),
     }), 201
+
+
+@warehouse_bp.route("/api/warehouses/<int:warehouse_id>", methods=["DELETE"])
+@login_required
+@roles_required(INVENTORY_MANAGER)
+def remove_warehouse(warehouse_id):
+    if not get_warehouse_by_id(warehouse_id):
+        return jsonify({"success": False, "message": "Warehouse not found"}), 404
+    error = delete_warehouse(warehouse_id)
+    if error:
+        return jsonify({"success": False, "message": error}), 409
+    return jsonify({"success": True, "message": "Warehouse deleted"}), 200
 
 
 # ── Locations ───────────────────────────────────────────────────────────────

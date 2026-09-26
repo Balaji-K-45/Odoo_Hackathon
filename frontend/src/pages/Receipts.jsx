@@ -6,14 +6,12 @@ import { useState, useEffect } from "react";
 import { Modal, Toast, LoadingSpinner, ErrorMessage, EmptyState, StatusBadge, SearchBar } from "../components/ui";
 import { getReceipts, createReceipt } from "../services/inventoryApi";
 import { getProducts } from "../services/productApi";
-import { getWarehouses } from "../services/warehouseApi";
-
-const UOM_OPTIONS = ["pcs", "kg", "m", "roll", "litre", "box"];
+import { getLocations } from "../services/warehouseApi";
 
 export default function Receipts() {
   const [receipts, setReceipts]     = useState([]);
   const [products, setProducts]     = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
   const [search, setSearch]         = useState("");
@@ -21,7 +19,7 @@ export default function Receipts() {
 
   // Form
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ supplier: "", product_id: "", product: "", quantity: "", uom: "pcs", warehouse_id: "", warehouse: "" });
+  const [form, setForm] = useState({ supplier: "", product_id: "", product: "", quantity: "", uom: "pcs", location_id: "", warehouse: "" });
   const [formError, setFormError] = useState("");
   const [saving, setSaving]       = useState(false);
 
@@ -30,10 +28,10 @@ export default function Receipts() {
   async function loadData() {
     setLoading(true); setError("");
     try {
-      const [rRes, pRes, wRes] = await Promise.all([getReceipts(), getProducts(), getWarehouses()]);
+      const [rRes, pRes, lRes] = await Promise.all([getReceipts(), getProducts(), getLocations()]);
       setReceipts(rRes.data || []);
       setProducts(pRes.data || []);
-      setWarehouses(wRes.data || []);
+      setLocations(lRes.data || []);
     } catch (err) {
       if (err.status === 403 || err.isForbidden) {
         setError("You don't have permission for this action.");
@@ -52,9 +50,9 @@ export default function Receipts() {
         const p = products.find((x) => x.id === Number(v));
         if (p) { next.product = p.name; next.uom = p.uom; }
       }
-      if (k === "warehouse_id") {
-        const w = warehouses.find((x) => x.id === Number(v));
-        if (w) next.warehouse = w.name;
+      if (k === "location_id") {
+        const location = locations.find((x) => x.id === Number(v));
+        if (location) next.warehouse = location.name;
       }
       return next;
     });
@@ -63,7 +61,7 @@ export default function Receipts() {
   async function handleSave(e) {
     e.preventDefault();
     setFormError("");
-    if (!form.supplier || !form.product_id || !form.quantity || !form.warehouse_id) {
+    if (!form.supplier || !form.product_id || !form.quantity || !form.location_id) {
       setFormError("All fields are required");
       return;
     }
@@ -73,11 +71,11 @@ export default function Receipts() {
         ...form,
         product_id: Number(form.product_id),
         quantity: Number(form.quantity),
-        warehouse_id: Number(form.warehouse_id),
+        location_id: Number(form.location_id),
       });
       setToast({ message: `Receipt created — Stock +${form.quantity}`, type: "success" });
       setModalOpen(false);
-      setForm({ supplier: "", product_id: "", product: "", quantity: "", uom: "pcs", warehouse_id: "", warehouse: "" });
+      setForm({ supplier: "", product_id: "", product: "", quantity: "", uom: "pcs", location_id: "", warehouse: "" });
       loadData();
     } catch (err) {
       if (err.status === 403 || err.isForbidden) {
@@ -153,10 +151,10 @@ export default function Receipts() {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Warehouse *</label>
-              <select className="form-select" value={form.warehouse_id} onChange={(e) => updateField("warehouse_id", e.target.value)}>
-                <option value="">Select warehouse</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              <label className="form-label">Destination Location *</label>
+              <select className="form-select" value={form.location_id} onChange={(e) => updateField("location_id", e.target.value)}>
+                <option value="">Select location</option>
+                {locations.map((location) => <option key={location.id} value={location.id}>{location.warehouse_name ? `${location.warehouse_name} / ` : ""}{location.name}</option>)}
               </select>
             </div>
           </div>

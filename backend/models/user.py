@@ -46,15 +46,18 @@ def update_password(email, new_hash):
 
 # ── OTP helpers ─────────────────────────────────────────────────────────────
 
-def save_otp(email, otp, expires_at):
+def save_otp(email, otp):
     db = get_db()
     with db.cursor() as cur:
         cur.execute(
             "UPDATE otp_tokens SET used=1 WHERE email=%s", (email,)
         )
         cur.execute(
-            "INSERT INTO otp_tokens (email, otp, expires_at) VALUES (%s,%s,%s)",
-            (email, otp, expires_at)
+            """
+            INSERT INTO otp_tokens (email, otp, expires_at)
+            VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 10 MINUTE))
+            """,
+            (email, otp)
         )
     db.commit()
 
@@ -76,4 +79,11 @@ def mark_otp_used(otp_id):
     db = get_db()
     with db.cursor() as cur:
         cur.execute("UPDATE otp_tokens SET used=1 WHERE id=%s", (otp_id,))
+    db.commit()
+
+
+def invalidate_otps(email):
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("UPDATE otp_tokens SET used=1 WHERE email=%s AND used=0", (email,))
     db.commit()

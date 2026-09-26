@@ -12,22 +12,19 @@ import {
   StatusBadge,
   SearchBar,
 } from "../components/ui";
-import { getDeliveries, createDelivery, updateDeliveryStatus } from "../services/inventoryApi";
+import { getDeliveries, createDelivery } from "../services/inventoryApi";
 import { getProducts } from "../services/productApi";
-import { getWarehouses } from "../services/warehouseApi";
-import { useAuth } from "../context/AuthContext";
+import { getLocations } from "../services/warehouseApi";
 import "./Operations.css";
 
 export default function Deliveries() {
-  const { user, isStaff, isManager } = useAuth();
   const [deliveries, setDeliveries] = useState([]);
   const [products, setProducts]     = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
   const [search, setSearch]         = useState("");
   const [toast, setToast]           = useState(null);
-  const [processingId, setProcessingId] = useState(null);
 
   // Create Delivery Modal
   const [modalOpen, setModalOpen]   = useState(false);
@@ -37,7 +34,7 @@ export default function Deliveries() {
     product: "",
     quantity: "",
     uom: "pcs",
-    warehouse_id: "",
+    location_id: "",
     warehouse: "",
   });
   const [formError, setFormError]   = useState("");
@@ -51,14 +48,14 @@ export default function Deliveries() {
     setLoading(true);
     setError("");
     try {
-      const [dRes, pRes, wRes] = await Promise.all([
+      const [dRes, pRes, lRes] = await Promise.all([
         getDeliveries(),
         getProducts(),
-        getWarehouses(),
+        getLocations(),
       ]);
       setDeliveries(dRes.data || []);
       setProducts(pRes.data || []);
-      setWarehouses(wRes.data || []);
+      setLocations(lRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,9 +73,9 @@ export default function Deliveries() {
           next.uom = p.uom;
         }
       }
-      if (k === "warehouse_id") {
-        const w = warehouses.find((x) => x.id === Number(v));
-        if (w) next.warehouse = w.name;
+      if (k === "location_id") {
+        const location = locations.find((x) => x.id === Number(v));
+        if (location) next.warehouse = location.name;
       }
       return next;
     });
@@ -87,16 +84,8 @@ export default function Deliveries() {
   async function handleSave(e) {
     e.preventDefault();
     setFormError("");
-    if (!form.customer || !form.product_id || !form.quantity || !form.warehouse_id) {
+    if (!form.customer || !form.product_id || !form.quantity || !form.location_id) {
       setFormError("All fields are required");
-      return;
-    }
-
-    const prod = products.find((p) => p.id === Number(form.product_id));
-    if (prod && Number(form.quantity) > prod.stock) {
-      setFormError(
-        `Insufficient stock available! Current stock: ${prod.stock} ${prod.uom}, requested: ${form.quantity} ${prod.uom}`
-      );
       return;
     }
 
@@ -106,11 +95,10 @@ export default function Deliveries() {
         ...form,
         product_id: Number(form.product_id),
         quantity: Number(form.quantity),
-        warehouse_id: Number(form.warehouse_id),
-        status: "ready", // Ready to be Picked
+        location_id: Number(form.location_id),
       });
       setToast({
-        message: `Delivery order created successfully! Stock reserved: -${form.quantity} ${form.uom}`,
+        message: `Delivery completed. Stock decreased by ${form.quantity} ${form.uom}.`,
         type: "success",
       });
       setModalOpen(false);
@@ -120,7 +108,7 @@ export default function Deliveries() {
         product: "",
         quantity: "",
         uom: "pcs",
-        warehouse_id: "",
+        location_id: "",
         warehouse: "",
       });
       loadData();
@@ -130,42 +118,6 @@ export default function Deliveries() {
       setSaving(false);
     }
   }
-
-  // Pick, Pack, Validate lifecycle steps
-  async function handleAdvanceLifecycle(delivery, targetStatus) {
-    setProcessingId(delivery.id);
-    try {
-      // Validate stock availability check
-      const prod = products.find((p) => p.id === delivery.product_id || p.name === delivery.product);
-      if (targetStatus === "done" && prod && prod.stock < delivery.quantity) {
-        setToast({
-          message: `Cannot validate: Insufficient stock! Available: ${prod.stock}, Needed: ${delivery.quantity}`,
-          type: "error",
-        });
-        return;
-      }
-
-      await updateDeliveryStatus(delivery.id, targetStatus);
-      const actionLabels = {
-        picked: "Items picked from warehouse rack",
-        packed: "Items packed for dispatch",
-        done: "Delivery validated & stock deducted from inventory",
-      };
-      setToast({
-        message: `${delivery.id}: ${actionLabels[targetStatus] || "Status updated"}`,
-        type: "success",
-      });
-      loadData();
-    } catch (err) {
-      setToast({ message: err.message, type: "error" });
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  const selectedProduct = products.find((p) => p.id === Number(form.product_id));
-  const hasInsufficientStock =
-    selectedProduct && form.quantity && Number(form.quantity) > selectedProduct.stock;
 
   const filtered = deliveries.filter((d) => {
     const q = search.toLowerCase();
@@ -185,9 +137,7 @@ export default function Deliveries() {
       <div className="page-header">
         <div>
           <h1>Delivery Orders</h1>
-          <p className="page-header-subtitle">
-            Ship products to customers with full Pick → Pack → Validate lifecycle
-          </p>
+          <p className="page-header-subtitle">Create a delivery and deduct stock after server-side availability checks</p>
         </div>
         <button
           className="btn btn--primary"
@@ -198,43 +148,6 @@ export default function Deliveries() {
         >
           + New Delivery Order
         </button>
-      </div>
-
-      {/* Workflow Guidance Card */}
-      <div className="delivery-workflow-card">
-        <div className="workflow-steps">
-          <div className="workflow-step active">
-            <span className="step-num">1</span>
-            <div>
-              <strong>Order Ready</strong>
-              <small>Stock allocated</small>
-            </div>
-          </div>
-          <span className="step-arrow">→</span>
-          <div className="workflow-step">
-            <span className="step-num">2</span>
-            <div>
-              <strong>Pick</strong>
-              <small>Staff collects items</small>
-            </div>
-          </div>
-          <span className="step-arrow">→</span>
-          <div className="workflow-step">
-            <span className="step-num">3</span>
-            <div>
-              <strong>Pack</strong>
-              <small>Parcel packaging</small>
-            </div>
-          </div>
-          <span className="step-arrow">→</span>
-          <div className="workflow-step">
-            <span className="step-num">4</span>
-            <div>
-              <strong>Validate</strong>
-              <small>Stock deducted &amp; shipped</small>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="data-table-wrapper">
@@ -256,20 +169,17 @@ export default function Deliveries() {
                 <th>Warehouse</th>
                 <th>Status</th>
                 <th>Date</th>
-                <th>Fulfillment Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={7}>
                     <EmptyState title="No delivery orders found" />
                   </td>
                 </tr>
               ) : (
-                filtered.map((d) => {
-                  const isProcessing = processingId === d.id;
-                  return (
+                filtered.map((d) => (
                     <tr key={d.id}>
                       <td>
                         <strong>{d.id}</strong>
@@ -284,47 +194,8 @@ export default function Deliveries() {
                         <StatusBadge status={d.status} />
                       </td>
                       <td>{d.date}</td>
-                      <td>
-                        {/* Pick, Pack, Validate lifecycle buttons */}
-                        {d.status === "ready" || d.status === "waiting" ? (
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm"
-                            disabled={isProcessing}
-                            onClick={() => handleAdvanceLifecycle(d, "picked")}
-                            title="Perform picking from warehouse shelves"
-                          >
-                            {isProcessing ? "Processing..." : "📦 Pick Items"}
-                          </button>
-                        ) : d.status === "picked" ? (
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm"
-                            disabled={isProcessing}
-                            onClick={() => handleAdvanceLifecycle(d, "packed")}
-                            title="Package picked items into courier box"
-                          >
-                            {isProcessing ? "Processing..." : "🏷️ Pack Order"}
-                          </button>
-                        ) : d.status === "packed" ? (
-                          <button
-                            type="button"
-                            className="btn btn--primary btn--sm"
-                            disabled={isProcessing}
-                            onClick={() => handleAdvanceLifecycle(d, "done")}
-                            title="Sign off & deduct stock permanently"
-                          >
-                            {isProcessing ? "Processing..." : "✅ Validate & Ship"}
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: 12, color: "var(--success)", fontWeight: 600 }}>
-                            ✓ Shipped
-                          </span>
-                        )}
-                      </td>
                     </tr>
-                  );
-                })
+                ))
               )}
             </tbody>
           </table>
@@ -375,53 +246,22 @@ export default function Deliveries() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Origin Warehouse *</label>
+              <label className="form-label">Source Location *</label>
               <select
                 className="form-select"
-                value={form.warehouse_id}
-                onChange={(e) => updateField("warehouse_id", e.target.value)}
+                value={form.location_id}
+                onChange={(e) => updateField("location_id", e.target.value)}
                 required
               >
-                <option value="">Select warehouse</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
+                <option value="">Select location</option>
+                {locations.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.warehouse_name ? `${location.warehouse_name} / ` : ""}{location.name}
                   </option>
                 ))}
               </select>
             </div>
           </div>
-
-          {/* Real-time Available Stock & Validation Preview */}
-          {selectedProduct && (
-            <div
-              className={`delivery-stock-info ${hasInsufficientStock ? "stock-insufficient" : ""}`}
-            >
-              <div>
-                <span>Currently Available in Inventory:</span>{" "}
-                <strong style={{ fontSize: 14 }}>
-                  {selectedProduct.stock} {selectedProduct.uom}
-                </strong>
-              </div>
-              {form.quantity && (
-                <div>
-                  Remaining after fulfillment:{" "}
-                  <strong
-                    style={{
-                      color: hasInsufficientStock ? "var(--danger)" : "var(--text-primary)",
-                    }}
-                  >
-                    {selectedProduct.stock - Number(form.quantity)} {selectedProduct.uom}
-                  </strong>
-                </div>
-              )}
-              {hasInsufficientStock && (
-                <div className="stock-alert-msg">
-                  ⚠️ Error: Insufficient stock available. Cannot deliver more than current on-hand quantity.
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="form-row">
             <div className="form-group">
@@ -454,7 +294,7 @@ export default function Deliveries() {
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={saving || hasInsufficientStock}
+              disabled={saving}
             >
               {saving ? "Creating Order..." : "Create Delivery Order"}
             </button>
