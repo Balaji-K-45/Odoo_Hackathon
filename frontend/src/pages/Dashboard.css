@@ -1,0 +1,116 @@
+/* ═══════════════════════════════════════════════════════════
+   Dashboard Page Styles
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Target Persona Callout ── */
+.persona-callout {
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.persona-callout.callout--manager {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.persona-callout.callout--staff {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.persona-callout-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.persona-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.persona-callout-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.persona-callout-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 3px;
+}
+
+.persona-callout-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.persona-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Dashboard Grid ── */
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.text-positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.text-negative {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .persona-callout-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .persona-quick-actions {
+    width: 100%;
+  }
+
+  .persona-quick-actions .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-kpis {
+    grid-template-columns: 1fr;
+  }
+}
